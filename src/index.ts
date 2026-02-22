@@ -56,10 +56,17 @@ if (process.argv.includes('--version')) {
   process.exit(0);
 }
 
+// IMPORTANT: MCP stdio transport uses stdout for JSON-RPC messages.
+// Any extra output to stdout (including from dependencies like GramJS) can break the transport.
+// Redirect common stdout console methods to stderr.
+console.log = console.error;
+console.info = console.error;
+console.debug = console.error;
+
 const server = new Server(
   {
     name: "telegram-mcp-local-server",
-    version: "1.0.7",
+    version: "1.0.9",
   },
   {
     capabilities: {
@@ -363,15 +370,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function runServer() {
-  // Auto-initialize Telegram client if environment variables are present
-  await autoInitializeTelegramClient();
-  
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // console.log(`Telegram MCP server running on stdio (${isReadonlyMode ? 'readonly' : 'read-write'} mode)`);
+
+  // Auto-initialize Telegram client if environment variables are present.
+  // Important: do not block MCP stdio handshake on network/auth initialization.
+  void autoInitializeTelegramClient().catch((error) => {
+    console.error(
+      "Failed to auto-initialize Telegram client:",
+      error instanceof Error ? error.message : String(error)
+    );
+  });
+
+  console.error(
+    `Telegram MCP server running on stdio (${isReadonlyMode ? "readonly" : "read-write"} mode)`
+  );
 }
 
 runServer().catch((error) => {
-  // console.error('Server error:', error);
+  console.error("Server error:", error);
   process.exit(1);
 });

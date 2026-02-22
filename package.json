@@ -1,6 +1,6 @@
 {
   "name": "telegram-mcp-local-server",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Secure Model Context Protocol (MCP) server for Telegram integration. Runs locally, allows AI agents to read chats and message history, with built-in readonly mode for safety.",
   "main": "dist/index.js",
   "type": "module",
