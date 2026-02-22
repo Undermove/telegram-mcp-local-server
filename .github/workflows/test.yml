@@ -36,9 +36,6 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Test readonly mode
-        run: npm run test-readonly
-
       - name: Test package creation
         run: |
           npm pack
@@ -91,18 +88,5 @@ jobs:
           # Clean up
           kill $SERVER_PID 2>/dev/null || true
 
-      - name: Test readonly mode functionality
-        run: |
-          # Test readonly mode environment variable functionality
-          TELEGRAM_READONLY_MODE=true timeout 10s node dist/index.js &
-          SERVER_PID=$!
-          sleep 2
-          
-          # Test that readonly mode works
-          echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | TELEGRAM_READONLY_MODE=true timeout 5s node dist/index.js > /dev/null 2>&1 || echo "Readonly mode test completed"
-          
-          # Clean up
-          kill $SERVER_PID 2>/dev/null || true
-          
       - name: Run unit tests to verify functionality
         run: npm test

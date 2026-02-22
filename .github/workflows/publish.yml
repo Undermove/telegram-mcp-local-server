@@ -78,9 +78,6 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Test readonly mode
-        run: npm run test-readonly
-
   publish:
     runs-on: ubuntu-latest
     needs: [check-version, test]

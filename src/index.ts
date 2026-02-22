@@ -14,13 +14,6 @@ import { fileURLToPath } from "url";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
 
-// Determine if we're in interactive session-helper mode
-const isSessionMode = process.argv.includes('--session');
-
-// Check for --session flag
-// Note: We intentionally avoid importing the session helper at top-level to prevent
-// any stdout interference with the MCP stdio transport.
-
 // Check for --help flag
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
 //   console.log(`
@@ -378,20 +371,7 @@ async function runServer() {
   // console.log(`Telegram MCP server running on stdio (${isReadonlyMode ? 'readonly' : 'read-write'} mode)`);
 }
 
-if (isSessionMode) {
-  (async () => {
-    try {
-      const { default: sessionHelper } = await import('./session-helper.js');
-      await sessionHelper();
-      process.exit(0);
-    } catch (error) {
-      // console.error('Error running session helper:', error);
-      process.exit(1);
-    }
-  })();
-} else {
-  runServer().catch((error) => {
-    // console.error('Server error:', error);
-    process.exit(1);
-  });
-}
+runServer().catch((error) => {
+  // console.error('Server error:', error);
+  process.exit(1);
+});

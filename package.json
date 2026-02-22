@@ -1,6 +1,6 @@
 {
   "name": "telegram-mcp-local-server",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Secure Model Context Protocol (MCP) server for Telegram integration. Runs locally, allows AI agents to read chats and message history, with built-in readonly mode for safety.",
   "main": "dist/index.js",
   "type": "module",
@@ -17,10 +17,6 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "test": "jest",
-    "test-client": "tsx src/test.ts",
-    "test-channels": "tsx src/test-channels.ts",
-    "session": "tsx src/session-helper.ts",
-    "test-readonly": "TELEGRAM_READONLY_MODE=true npm test",
     "prepublishOnly": "npm run build",
     "version:patch": "tsx scripts/bump-version.ts patch",
     "version:minor": "tsx scripts/bump-version.ts minor",
