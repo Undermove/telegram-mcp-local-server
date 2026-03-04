@@ -66,7 +66,7 @@ console.debug = console.error;
 const server = new Server(
   {
     name: "telegram-mcp-local-server",
-    version: "1.0.9",
+    version: "1.1.0",
   },
   {
     capabilities: {
@@ -80,6 +80,17 @@ let telegramClient: TelegramClient | null = null;
 
 // Check if server is running in readonly mode
 const isReadonlyMode = process.env.TELEGRAM_READONLY_MODE === 'true';
+
+// Publishing is only possible when readonly is false and ALLOW_PUBLISH_TO_CHANNELS is set.
+// '*' means all channels allowed; a comma-separated list restricts to specific channel IDs.
+const allowPublishRaw = process.env.TELEGRAM_ALLOW_PUBLISH_TO_CHANNELS?.trim() ?? '';
+const allowPublishToAllChannels = !isReadonlyMode && allowPublishRaw === '*';
+const allowPublishToChannels: string[] = (!isReadonlyMode && !allowPublishToAllChannels && allowPublishRaw)
+  ? allowPublishRaw.split(',').map(id => id.trim()).filter(Boolean)
+  : [];
+
+// Derived: can publish at all?
+const canPublish = !isReadonlyMode && (allowPublishToAllChannels || allowPublishToChannels.length > 0);
 
 // Initialize Telegram client
 async function initializeTelegramClient(apiId: string, apiHash: string, sessionString?: string) {
@@ -172,11 +183,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     },
   ];
 
-  // Add send message tool only if not in readonly mode
-  if (!isReadonlyMode) {
+  // Add send message tool only if publishing is allowed
+  if (canPublish) {
+    const channelRestriction = allowPublishToChannels.length > 0
+      ? ` Allowed channel IDs: ${allowPublishToChannels.join(', ')}.`
+      : '';
     tools.push({
       name: "telegram_send_message",
-      description: "Send a message to a specific chat",
+      description: `Send a message to a specific chat.${channelRestriction}`,
       inputSchema: {
         type: "object",
         properties: {
@@ -309,7 +323,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "telegram_send_message": {
-        if (isReadonlyMode) {
+        if (!canPublish) {
           throw new McpError(
             ErrorCode.InvalidRequest,
             "Message sending is not available in readonly mode."
@@ -329,6 +343,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         const { chatId, message } = sendSchema.parse(args);
+
+        if (!allowPublishToAllChannels && !allowPublishToChannels.includes(chatId)) {
+          throw new McpError(
+            ErrorCode.InvalidRequest,
+            `Sending messages to chat "${chatId}" is not allowed. Allowed channels: ${allowPublishToChannels.join(', ')}.`
+          );
+        }
         
         try {
           const result = await telegramClient.sendMessage(chatId, message);
@@ -382,9 +403,12 @@ async function runServer() {
     );
   });
 
-  console.error(
-    `Telegram MCP server running on stdio (${isReadonlyMode ? "readonly" : "read-write"} mode)`
-  );
+  const modeDescription = canPublish
+    ? allowPublishToAllChannels
+      ? 'read-write mode (all channels)'
+      : `read-write mode (allowed channels: ${allowPublishToChannels.join(', ')})`
+    : 'readonly mode';
+  console.error(`Telegram MCP server running on stdio (${modeDescription})`);
 }
 
 runServer().catch((error) => {
