@@ -1,6 +1,7 @@
 import { TelegramClient as TgClient } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
 import { Api } from "telegram";
+import { LogLevel } from "telegram/extensions/Logger.js";
 
 export interface TelegramConfig {
   apiId: number;
@@ -42,8 +43,9 @@ export class TelegramClient {
     const session = new StringSession(config.sessionString || "");
     
     this.client = new TgClient(session, config.apiId, config.apiHash, {
-      connectionRetries: 5,
+      connectionRetries: 2,
     });
+    this.client.setLogLevel(LogLevel.NONE);
   }
 
   async connect(): Promise<void> {
@@ -157,12 +159,63 @@ export class TelegramClient {
     }
   }
 
+  private parseMarkdown(text: string): [string, Api.TypeMessageEntity[]] {
+    const entities: Api.TypeMessageEntity[] = [];
+    let cleanText = "";
+    let i = 0;
+
+    while (i < text.length) {
+      if (text.startsWith("```", i)) {
+        i += 3;
+        let lang = "";
+        const nlPos = text.indexOf("\n", i);
+        if (nlPos !== -1) {
+          const possibleLang = text.slice(i, nlPos).trim();
+          if (possibleLang && !possibleLang.includes(" ") && !possibleLang.includes("`")) {
+            lang = possibleLang;
+            i = nlPos + 1;
+          }
+        }
+        const endPos = text.indexOf("```", i);
+        if (endPos === -1) {
+          cleanText += "```" + text.slice(i);
+          i = text.length;
+        } else {
+          const code = text.slice(i, endPos);
+          const offset = [...cleanText].length;
+          cleanText += code;
+          entities.push(new Api.MessageEntityPre({ offset, length: [...code].length, language: lang }));
+          i = endPos + 3;
+          if (i < text.length && text[i] === "\n") i++;
+        }
+      } else if (text[i] === "`") {
+        i++;
+        const endPos = text.indexOf("`", i);
+        if (endPos === -1) {
+          cleanText += "`";
+        } else {
+          const code = text.slice(i, endPos);
+          const offset = [...cleanText].length;
+          cleanText += code;
+          entities.push(new Api.MessageEntityCode({ offset, length: [...code].length }));
+          i = endPos + 1;
+        }
+      } else {
+        cleanText += text[i];
+        i++;
+      }
+    }
+
+    return [cleanText, entities];
+  }
+
   async sendMessage(chatId: string, message: string): Promise<MessageInfo> {
     // console.error(`Sending message to chat ${chatId}...`);
     
     try {
       const entity = await this.client.getEntity(chatId);
-      const result = await this.client.sendMessage(entity, { message }) as any;
+      const [parsedMessage, formattingEntities] = this.parseMarkdown(message);
+      const result = await this.client.sendMessage(entity, { message: parsedMessage, formattingEntities }) as any;
       
       if (!result || result.className !== "Message") {
         throw new Error("Failed to send message");
