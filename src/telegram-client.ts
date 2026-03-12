@@ -209,13 +209,23 @@ export class TelegramClient {
     return [cleanText, entities];
   }
 
-  async sendMessage(chatId: string, message: string): Promise<MessageInfo> {
+  async sendMessage(chatId: string, message: string, parseMode?: string): Promise<MessageInfo> {
     // console.error(`Sending message to chat ${chatId}...`);
-    
+
     try {
       const entity = await this.client.getEntity(chatId);
-      const [parsedMessage, formattingEntities] = this.parseMarkdown(message);
-      const result = await this.client.sendMessage(entity, { message: parsedMessage, formattingEntities }) as any;
+
+      let sendOptions: any;
+      if (parseMode) {
+        // Use Telegram's built-in parse mode (html, md2, markdown)
+        sendOptions = { message, parseMode };
+      } else {
+        // Use custom markdown parser (code blocks only)
+        const [parsedMessage, formattingEntities] = this.parseMarkdown(message);
+        sendOptions = { message: parsedMessage, formattingEntities };
+      }
+
+      const result = await this.client.sendMessage(entity, sendOptions) as any;
       
       if (!result || result.className !== "Message") {
         throw new Error("Failed to send message");

@@ -202,6 +202,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             type: "string",
             description: "Message text to send",
           },
+          parseMode: {
+            type: "string",
+            description: "Optional parse mode for message formatting: 'html' for HTML tags (<b>, <i>, <a href=\"...\">), 'md2' for MarkdownV2, or 'markdown' for legacy Markdown. If omitted, only code blocks are formatted.",
+            enum: ["html", "md2", "markdown"],
+          },
         },
         required: ["chatId", "message"],
       },
@@ -340,9 +345,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const sendSchema = z.object({
           chatId: z.string(),
           message: z.string(),
+          parseMode: z.enum(["html", "md2", "markdown"]).optional(),
         });
 
-        const { chatId, message } = sendSchema.parse(args);
+        const { chatId, message, parseMode } = sendSchema.parse(args);
 
         if (!allowPublishToAllChannels && !allowPublishToChannels.includes(chatId)) {
           throw new McpError(
@@ -352,7 +358,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         
         try {
-          const result = await telegramClient.sendMessage(chatId, message);
+          const result = await telegramClient.sendMessage(chatId, message, parseMode);
           return {
             content: [
               {
