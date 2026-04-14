@@ -209,7 +209,7 @@ export class TelegramClient {
     return [cleanText, entities];
   }
 
-  async sendMessage(chatId: string, message: string, parseMode?: string): Promise<MessageInfo> {
+  async sendMessage(chatId: string, message: string, parseMode?: string, files?: string[]): Promise<MessageInfo> {
     // console.error(`Sending message to chat ${chatId}...`);
 
     try {
@@ -223,6 +223,13 @@ export class TelegramClient {
         // Use custom markdown parser (code blocks only)
         const [parsedMessage, formattingEntities] = this.parseMarkdown(message);
         sendOptions = { message: parsedMessage, formattingEntities };
+      }
+
+      // Attach files if provided (GramJS supports local paths via `file` param)
+      if (files && files.length === 1) {
+        sendOptions.file = files[0];
+      } else if (files && files.length > 1) {
+        sendOptions.file = files;
       }
 
       const result = await this.client.sendMessage(entity, sendOptions) as any;

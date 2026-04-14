@@ -207,6 +207,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             description: "Optional parse mode for message formatting: 'html' for HTML tags (<b>, <i>, <a href=\"...\">), 'md2' for MarkdownV2, or 'markdown' for legacy Markdown. If omitted, only code blocks are formatted.",
             enum: ["html", "md2", "markdown"],
           },
+          files: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional array of absolute file paths to send as attachments (photos, documents). Single file sends as photo/document, multiple files send as media group.",
+          },
         },
         required: ["chatId", "message"],
       },
@@ -346,9 +351,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           chatId: z.string(),
           message: z.string(),
           parseMode: z.enum(["html", "md2", "markdown"]).optional(),
+          files: z.array(z.string()).optional(),
         });
 
-        const { chatId, message, parseMode } = sendSchema.parse(args);
+        const { chatId, message, parseMode, files } = sendSchema.parse(args);
 
         if (!allowPublishToAllChannels && !allowPublishToChannels.includes(chatId)) {
           throw new McpError(
@@ -356,9 +362,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             `Sending messages to chat "${chatId}" is not allowed. Allowed channels: ${allowPublishToChannels.join(', ')}.`
           );
         }
-        
+
         try {
-          const result = await telegramClient.sendMessage(chatId, message, parseMode);
+          const result = await telegramClient.sendMessage(chatId, message, parseMode, files);
           return {
             content: [
               {
